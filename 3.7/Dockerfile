@@ -2,6 +2,7 @@ FROM ubuntu:focal AS build
 
 ENV DEBIAN_FRONTEND noninteractive
 ENV LANG C.UTF-8
+ENV NOMINATIM_DATABASE_DSN "pgsql://nominatim:password1234@192.168.1.128:6432/nominatim"
 
 WORKDIR /app
 
@@ -30,11 +31,6 @@ RUN true \
         libboost-dev \
         libboost-system-dev \
         libboost-filesystem-dev \
-        # PostgreSQL.
-        postgresql-contrib \
-        postgresql-server-dev-12 \
-        postgresql-12-postgis-3 \
-        postgresql-12-postgis-3-scripts \
         # PHP and Apache 2.
         php \
         php-intl \
@@ -58,11 +54,6 @@ RUN true \
         curl \
         sudo
 
-
-# Configure postgres.
-RUN true \
-    && echo "host all all 0.0.0.0/0 md5" >> /etc/postgresql/12/main/pg_hba.conf \
-    && echo "listen_addresses='*'" >> /etc/postgresql/12/main/postgresql.conf
 
 # Osmium install to run continuous updates.
 RUN pip3 install osmium
@@ -93,7 +84,6 @@ RUN true \
         linux-libc-dev \
         libclang-*-dev \
         build-essential \
-        postgresql-server-dev-12 \
     && apt-get clean \
     # Clear temporary files and directories.
     && rm -rf \
@@ -110,15 +100,10 @@ RUN true \
 # Apache configuration
 COPY conf.d/apache.conf /etc/apache2/sites-enabled/000-default.conf
 
-# Postgres config overrides to improve import performance (but reduce crash recovery safety)
-COPY conf.d/postgres-import.conf /etc/postgresql/12/main/conf.d/
-COPY conf.d/postgres-tuning.conf /etc/postgresql/12/main/conf.d/
-
 COPY config.sh /app/config.sh
 COPY init.sh /app/init.sh
 COPY start.sh /app/start.sh
 COPY startapache.sh /app/startapache.sh
-COPY startpostgres.sh /app/startpostgres.sh
 
 # Collapse image to single layer.
 FROM scratch
